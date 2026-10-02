@@ -1,11 +1,27 @@
-import os
 from pathlib import Path
+
+import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-insecure-key")
-DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
-ALLOWED_HOSTS = [host for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if host]
+env = environ.Env(
+    DJANGO_DEBUG=(bool, False),
+    DJANGO_ALLOWED_HOSTS=(list, []),
+)
+
+ENV_FILE = BASE_DIR / ".env"
+if ENV_FILE.exists():
+    environ.Env.read_env(ENV_FILE)
+
+PLACEHOLDER_SECRET_KEY = "change-me"
+
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+DEBUG = env("DJANGO_DEBUG")
+ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+
+if not DEBUG and SECRET_KEY == PLACEHOLDER_SECRET_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set to a real value when DEBUG is off.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -48,10 +64,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
 }
 
 AUTH_PASSWORD_VALIDATORS = [

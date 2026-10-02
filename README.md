@@ -22,6 +22,28 @@ Show how to design and operate a shared agent platform: tenant isolation, versio
 
 Python, Django REST Framework, Celery, Redis, PostgreSQL with pgvector, Langfuse, pytest, Docker, GitHub Actions.
 
+## Development setup
+
+```bash
+python -m venv .venv
+pip install -r requirements.txt
+cp .env.example .env
+python manage.py runserver
+```
+
+Configuration comes from environment variables, or from a `.env` file at the project root (ignored by git). `DJANGO_SECRET_KEY` is required and has no default. Generate one with:
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+| Variable | Description |
+|---|---|
+| `DJANGO_SECRET_KEY` | Secret key (required). The `change-me` placeholder is rejected when `DJANGO_DEBUG` is off |
+| `DJANGO_DEBUG` | `1` to enable debug mode (default off) |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated host names |
+| `DATABASE_URL` | Database URL (default: SQLite file in the project root) |
+
 ## Roadmap
 
 - [ ] 1. Project skeleton, tenants and API key auth
