@@ -28,10 +28,14 @@ Python, Django REST Framework, Celery, Redis, PostgreSQL with pgvector, Langfuse
 python -m venv .venv
 pip install -r requirements.txt
 cp .env.example .env
+docker compose up -d --wait
+python manage.py migrate
 python manage.py runserver
 ```
 
-Configuration comes from environment variables, or from a `.env` file at the project root (ignored by git). `DJANGO_SECRET_KEY` is required and has no default. Generate one with:
+`docker compose` starts PostgreSQL (with the pgvector extension) and Redis, bound to `127.0.0.1` only. The host ports are `55432` and `56379` to avoid clashing with other local databases. Use `127.0.0.1` instead of `localhost` in the URLs: on Windows `localhost` can resolve to IPv6 first, and the connection waits for a timeout.
+
+Configuration comes from environment variables, or from a `.env` file at the project root (ignored by git). `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD` are required and have no default. Generate a secret key with:
 
 ```bash
 python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
@@ -43,6 +47,9 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 | `DJANGO_DEBUG` | `1` to enable debug mode (default off) |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated host names |
 | `DATABASE_URL` | Database URL (default: SQLite file in the project root) |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Credentials of the PostgreSQL container (the password is required) |
+| `POSTGRES_PORT`, `REDIS_PORT` | Host ports published by Docker Compose |
+| `REDIS_URL` | Redis URL (used by the task queue in later steps) |
 
 ## Roadmap
 
