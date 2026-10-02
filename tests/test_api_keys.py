@@ -1,14 +1,9 @@
 import pytest
 from django.db import connection
 
-from tenants.models import ApiKey, Tenant
+from tenants.models import ApiKey
 
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture
-def tenant():
-    return Tenant.objects.create(name="Acme Vet", slug="acme-vet")
 
 
 def test_issue_returns_the_raw_key_once(tenant):
