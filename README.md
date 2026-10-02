@@ -47,6 +47,7 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 | `DJANGO_DEBUG` | `1` to enable debug mode (default off) |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated host names |
 | `TENANT_RATE_LIMIT` | Requests per tenant, as `count/period` (default `120/min`); counters live in the Django cache |
+| `ALLOWED_MODELS` | Comma-separated model names an agent version may use (default `gpt-4o-mini,gpt-4o`) |
 | `DATABASE_URL` | Database URL (default: SQLite file in the project root) |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Credentials of the PostgreSQL container (the password is required) |
 | `POSTGRES_PORT`, `REDIS_PORT` | Host ports published by Docker Compose |

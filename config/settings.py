@@ -9,6 +9,7 @@ env = environ.Env(
     DJANGO_DEBUG=(bool, False),
     DJANGO_ALLOWED_HOSTS=(list, []),
     TENANT_RATE_LIMIT=(str, "120/min"),
+    ALLOWED_MODELS=(list, ["gpt-4o-mini", "gpt-4o"]),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -21,6 +22,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 TENANT_RATE_LIMIT = env("TENANT_RATE_LIMIT")
+ALLOWED_MODELS = env("ALLOWED_MODELS")
 
 if not DEBUG and SECRET_KEY == PLACEHOLDER_SECRET_KEY:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set to a real value when DEBUG is off.")
