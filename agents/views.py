@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -56,10 +57,12 @@ class AgentVersionViewSet(
             raise Conflict(str(error)) from error
         return Response(self.get_serializer(version).data)
 
+    @extend_schema(request=None, responses=AgentVersionSerializer)
     @action(detail=True, methods=["post"])
     def publish(self, request, agent_id=None, pk=None):
         return self._transition("publish")
 
+    @extend_schema(request=None, responses=AgentVersionSerializer)
     @action(detail=True, methods=["post"])
     def archive(self, request, agent_id=None, pk=None):
         return self._transition("archive")

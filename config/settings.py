@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_spectacular",
     "tenants",
     "agents",
 ]
@@ -101,4 +102,14 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["tenants.authentication.ApiKeyAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["tenants.authentication.IsTenantAuthenticated"],
     "DEFAULT_THROTTLE_CLASSES": ["tenants.throttling.TenantRateThrottle"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Agent Platform API",
+    "DESCRIPTION": "Multi-tenant API to define and run LLM agents.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
 }
