@@ -7,6 +7,8 @@ from typing import NamedTuple, Self
 from django.db import models
 from django.utils import timezone
 
+from tenants.scoping import TenantQuerySet
+
 API_KEY_PREFIX_BYTES = 4
 API_KEY_SECRET_BYTES = 32
 API_KEY_SEPARATOR = "."
@@ -45,6 +47,8 @@ class ApiKey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+
+    objects = TenantQuerySet.as_manager()
 
     class Meta:
         ordering = ["-created_at"]

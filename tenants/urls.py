@@ -4,4 +4,5 @@ from tenants import views
 
 urlpatterns = [
     path("whoami", views.whoami),
+    path("api-keys", views.ApiKeyListView.as_view()),
 ]
