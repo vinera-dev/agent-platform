@@ -30,3 +30,12 @@ def client_for():
         return client
 
     return factory
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()

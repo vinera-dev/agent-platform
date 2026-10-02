@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(
     DJANGO_DEBUG=(bool, False),
     DJANGO_ALLOWED_HOSTS=(list, []),
+    TENANT_RATE_LIMIT=(str, "120/min"),
 )
 
 ENV_FILE = BASE_DIR / ".env"
@@ -19,6 +20,7 @@ PLACEHOLDER_SECRET_KEY = "change-me"
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+TENANT_RATE_LIMIT = env("TENANT_RATE_LIMIT")
 
 if not DEBUG and SECRET_KEY == PLACEHOLDER_SECRET_KEY:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set to a real value when DEBUG is off.")
@@ -95,4 +97,5 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["tenants.authentication.ApiKeyAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["tenants.authentication.IsTenantAuthenticated"],
+    "DEFAULT_THROTTLE_CLASSES": ["tenants.throttling.TenantRateThrottle"],
 }
