@@ -1,7 +1,7 @@
 import pytest
 from django.db import IntegrityError, transaction
 
-from agents.models import Agent, AgentVersion
+from agents.models import Agent, AgentVersion, InvalidTransition
 
 pytestmark = pytest.mark.django_db
 
@@ -61,13 +61,45 @@ def test_version_stores_parameters_and_tools(agent):
     assert version.tools == ["lookup_slots"]
 
 
-def test_only_one_version_can_be_published(agent):
+def test_publishing_archives_the_previous_published_version(agent):
     first = agent.new_version(**VERSION_FIELDS)
     second = agent.new_version(**VERSION_FIELDS)
     first.publish()
 
+    second.publish()
+    first.refresh_from_db()
+
+    assert first.status == AgentVersion.Status.ARCHIVED
+    assert second.status == AgentVersion.Status.PUBLISHED
+
+
+def test_only_a_draft_can_be_published(agent):
+    version = agent.new_version(**VERSION_FIELDS)
+    version.publish()
+
+    with pytest.raises(InvalidTransition):
+        version.publish()
+
+    version.archive()
+    with pytest.raises(InvalidTransition):
+        version.publish()
+
+
+def test_archiving_twice_is_refused(agent):
+    version = agent.new_version(**VERSION_FIELDS)
+    version.archive()
+
+    with pytest.raises(InvalidTransition):
+        version.archive()
+
+
+def test_database_allows_a_single_published_version_per_agent(agent):
+    first = agent.new_version(**VERSION_FIELDS)
+    second = agent.new_version(**VERSION_FIELDS)
+    AgentVersion.objects.filter(pk=first.pk).update(status="published")
+
     with pytest.raises(IntegrityError), transaction.atomic():
-        second.publish()
+        AgentVersion.objects.filter(pk=second.pk).update(status="published")
 
 
 def test_publish_sets_status_and_timestamp(agent):

@@ -1,11 +1,15 @@
 import uuid
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Max
 from django.utils import timezone
 
 from tenants.models import Tenant
 from tenants.scoping import TenantQuerySet
+
+
+class InvalidTransition(Exception):
+    pass
 
 
 class Agent(models.Model):
@@ -64,6 +68,18 @@ class AgentVersion(models.Model):
         return f"{self.agent.name} v{self.number}"
 
     def publish(self) -> None:
-        self.status = self.Status.PUBLISHED
-        self.published_at = timezone.now()
-        self.save(update_fields=["status", "published_at"])
+        if self.status != self.Status.DRAFT:
+            raise InvalidTransition(f"Only a draft can be published, not a {self.status} version.")
+        with transaction.atomic():
+            self.agent.versions.filter(status=self.Status.PUBLISHED).update(
+                status=self.Status.ARCHIVED
+            )
+            self.status = self.Status.PUBLISHED
+            self.published_at = timezone.now()
+            self.save(update_fields=["status", "published_at"])
+
+    def archive(self) -> None:
+        if self.status == self.Status.ARCHIVED:
+            raise InvalidTransition("The version is already archived.")
+        self.status = self.Status.ARCHIVED
+        self.save(update_fields=["status"])
