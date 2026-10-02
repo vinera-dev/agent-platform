@@ -69,6 +69,14 @@ curl -H "Authorization: Api-Key <key>" http://127.0.0.1:8000/v1/whoami
 
 Every `/v1` request is scoped to the key's tenant and limited by `TENANT_RATE_LIMIT`.
 
+## API documentation and contract
+
+Interactive docs are served at `/v1/docs` and the OpenAPI schema at `/v1/schema`. The committed snapshot `contracts/openapi-v1.json` is compared with the live schema in the tests, so any change to the public contract fails the build until the snapshot is regenerated on purpose:
+
+```bash
+python manage.py spectacular --format openapi-json --file contracts/openapi-v1.json
+```
+
 ## Roadmap
 
 - [x] 1. Project skeleton, tenants and API key auth
