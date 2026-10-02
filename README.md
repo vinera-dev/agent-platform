@@ -52,9 +52,25 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 | `POSTGRES_PORT`, `REDIS_PORT` | Host ports published by Docker Compose |
 | `REDIS_URL` | Redis URL (used by the task queue in later steps) |
 
+## Tenants and API keys
+
+Create a tenant and its first API key (the key is printed once and only its hash is stored):
+
+```bash
+python manage.py create_tenant acme-vet --name "Acme Vet"
+```
+
+Authenticate with the `Authorization` header:
+
+```bash
+curl -H "Authorization: Api-Key <key>" http://127.0.0.1:8000/v1/whoami
+```
+
+Every `/v1` request is scoped to the key's tenant and limited by `TENANT_RATE_LIMIT`.
+
 ## Roadmap
 
-- [ ] 1. Project skeleton, tenants and API key auth
+- [x] 1. Project skeleton, tenants and API key auth
 - [ ] 2. Agent definitions and versioned contracts
 - [ ] 3. Asynchronous runs and run history
 - [ ] 4. Knowledge bases with RAG
