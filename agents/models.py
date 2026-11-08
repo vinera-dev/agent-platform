@@ -83,3 +83,61 @@ class AgentVersion(models.Model):
             raise InvalidTransition("The version is already archived.")
         self.status = self.Status.ARCHIVED
         self.save(update_fields=["status"])
+
+
+class Run(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        RUNNING = "running"
+        SUCCEEDED = "succeeded"
+        FAILED = "failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="runs")
+    agent_version = models.ForeignKey(AgentVersion, on_delete=models.PROTECT, related_name="runs")
+    input = models.JSONField(default=dict)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    output = models.JSONField(null=True, blank=True)
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    objects = TenantQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["tenant", "-created_at"])]
+
+    def __str__(self) -> str:
+        return f"run {self.id} ({self.status})"
+
+    @property
+    def duration(self):
+        if self.started_at and self.finished_at:
+            return self.finished_at - self.started_at
+        return None
+
+    def mark_running(self) -> None:
+        self._transition(self.Status.PENDING, self.Status.RUNNING)
+        self.started_at = timezone.now()
+        self.save(update_fields=["status", "started_at"])
+
+    def mark_succeeded(self, output) -> None:
+        self._transition(self.Status.RUNNING, self.Status.SUCCEEDED)
+        self.output = output
+        self.finished_at = timezone.now()
+        self.save(update_fields=["status", "output", "finished_at"])
+
+    def mark_failed(self, error: str) -> None:
+        if self.status in (self.Status.SUCCEEDED, self.Status.FAILED):
+            raise InvalidTransition(f"A {self.status} run cannot fail.")
+        self.status = self.Status.FAILED
+        self.error = error
+        self.finished_at = timezone.now()
+        self.save(update_fields=["status", "error", "finished_at"])
+
+    def _transition(self, expected, new) -> None:
+        if self.status != expected:
+            raise InvalidTransition(f"Cannot move a {self.status} run to {new}.")
+        self.status = new
