@@ -32,9 +32,7 @@ def test_task_runs_eagerly_in_tests(eager):
     assert result.get() == {"pong": "hello"}
 
 
-@pytest.mark.skipif(
-    not os.environ.get("CELERY_INTEGRATION_REDIS"), reason="CELERY_INTEGRATION_REDIS not set"
-)
+@pytest.mark.skipif(not os.environ.get("CELERY_INTEGRATION"), reason="CELERY_INTEGRATION not set")
 def test_task_runs_in_a_worker_against_real_redis():
     previous = celery_app.conf.task_always_eager
     celery_app.conf.task_always_eager = False

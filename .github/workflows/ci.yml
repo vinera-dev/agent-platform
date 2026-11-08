@@ -12,7 +12,8 @@ jobs:
       DJANGO_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else
       DJANGO_DEBUG: "0"
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
-      CELERY_INTEGRATION_REDIS: redis://127.0.0.1:6379/0
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_INTEGRATION: "1"
     services:
       redis:
         image: redis:7-alpine
