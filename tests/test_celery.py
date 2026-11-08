@@ -36,8 +36,6 @@ def test_task_runs_eagerly_in_tests(eager):
 def test_task_runs_in_a_worker_against_real_redis():
     previous = celery_app.conf.task_always_eager
     celery_app.conf.task_always_eager = False
-    celery_app.conf.broker_url = os.environ["CELERY_INTEGRATION_REDIS"]
-    celery_app.conf.result_backend = os.environ["CELERY_INTEGRATION_REDIS"]
     try:
         with start_worker(celery_app, perform_ping_check=False, pool="solo"):
             assert ping.delay("hi").get(timeout=15) == {"pong": "hi"}
