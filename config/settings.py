@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "tenants",
     "agents",
     "knowledge",
+    "tools",
 ]
 
 MIDDLEWARE = [
