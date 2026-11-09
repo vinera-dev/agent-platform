@@ -1085,7 +1085,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/ToolRequest"
+                                "$ref": "#/components/schemas/ToolCreatedRequest"
                             }
                         }
                     },
@@ -1101,7 +1101,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Tool"
+                                    "$ref": "#/components/schemas/ToolCreated"
                                 }
                             }
                         },
@@ -1927,6 +1927,88 @@
                     "input_schema",
                     "name",
                     "updated_at"
+                ]
+            },
+            "ToolCreated": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 1000
+                    },
+                    "input_schema": {},
+                    "endpoint_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 500
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "signing_secret": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "description",
+                    "endpoint_url",
+                    "id",
+                    "input_schema",
+                    "name",
+                    "signing_secret",
+                    "updated_at"
+                ]
+            },
+            "ToolCreatedRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                    },
+                    "description": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                    },
+                    "input_schema": {},
+                    "endpoint_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "minLength": 1,
+                        "maxLength": 500
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "description",
+                    "endpoint_url",
+                    "input_schema",
+                    "name"
                 ]
             },
             "ToolRequest": {

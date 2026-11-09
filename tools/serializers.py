@@ -56,3 +56,11 @@ class ToolSerializer(serializers.ModelSerializer):
         if not url_allowed(value):
             raise serializers.ValidationError(f"The domain {parts.hostname} is not allowed.")
         return value
+
+
+class ToolCreatedSerializer(ToolSerializer):
+    signing_secret = serializers.CharField(read_only=True)
+
+    class Meta(ToolSerializer.Meta):
+        fields = [*ToolSerializer.Meta.fields, "signing_secret"]
+        read_only_fields = [*ToolSerializer.Meta.read_only_fields, "signing_secret"]

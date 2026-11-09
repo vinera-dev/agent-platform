@@ -7,6 +7,7 @@ from django.conf import settings
 from jsonschema import Draft202012Validator
 
 from tools.models import Tool
+from tools.signing import signed_headers
 
 
 class ToolExecutionError(Exception):
@@ -90,7 +91,7 @@ def execute_tool(
         host = urlsplit(tool.endpoint_url).hostname
         raise DomainNotAllowed(f"The domain {host} is not in the allow-list.")
     body = json.dumps({"arguments": arguments}, separators=(",", ":"), sort_keys=True).encode()
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", **signed_headers(tool.signing_secret, body)}
     try:
         client = httpx.Client(
             timeout=settings.TOOL_TIMEOUT_SECONDS, follow_redirects=False, transport=transport

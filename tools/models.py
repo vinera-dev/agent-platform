@@ -1,9 +1,14 @@
+import secrets
 import uuid
 
 from django.db import models
 
 from tenants.models import Tenant
 from tenants.scoping import TenantQuerySet
+
+
+def generate_signing_secret() -> str:
+    return secrets.token_hex(32)
 
 
 class Tool(models.Model):
@@ -13,6 +18,9 @@ class Tool(models.Model):
     description = models.TextField(max_length=1000)
     input_schema = models.JSONField()
     endpoint_url = models.URLField(max_length=500)
+    signing_secret = models.CharField(
+        max_length=64, default=generate_signing_secret, editable=False
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
