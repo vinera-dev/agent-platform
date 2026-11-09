@@ -15,8 +15,29 @@ class Embedder(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
+SUFFIXES = ("ing", "ed", "ches", "shes", "xes", "zes", "s")
+KEPT_ENDINGS = ("ss", "us", "is")
+MIN_STEM_LENGTH = 3
+
+
+def strip_suffix(word: str, suffix: str) -> str:
+    if suffix == "s":
+        return word[:-1]
+    if suffix in ("ches", "shes", "xes", "zes"):
+        return word[:-2]
+    return word[: -len(suffix)]
+
+
+def stem(word: str) -> str:
+    for suffix in SUFFIXES:
+        if word.endswith(suffix) and not word.endswith(KEPT_ENDINGS):
+            stripped = strip_suffix(word, suffix)
+            return stripped if len(stripped) >= MIN_STEM_LENGTH else word
+    return word
+
+
 def tokenize(text: str) -> list[str]:
-    return TOKEN_PATTERN.findall(text.lower())
+    return [stem(word) for word in TOKEN_PATTERN.findall(text.lower())]
 
 
 class HashingEmbedder:

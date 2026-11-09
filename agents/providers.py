@@ -1,10 +1,14 @@
+import html
 import json
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+
+from knowledge.embeddings import stem
 
 
 class ProviderError(Exception):
@@ -86,6 +90,89 @@ class FakeProvider:
         return Completion(
             text=f"{self.reply}: {user_message(user_input)}",
             usage={"prompt_tokens": 1, "completion_tokens": 1},
+        )
+
+
+SOURCE_BLOCK = re.compile(r"<source [^>]*>\n(.*?)\n</source>", re.DOTALL)
+SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+WORD = re.compile(r"[a-z0-9]+")
+STOPWORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "do",
+        "does",
+        "for",
+        "from",
+        "how",
+        "in",
+        "is",
+        "it",
+        "of",
+        "on",
+        "or",
+        "the",
+        "to",
+        "we",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "will",
+        "with",
+        "you",
+        "your",
+        "i",
+        "my",
+        "our",
+        "can",
+    ]
+)
+
+
+def significant_words(text: str) -> set[str]:
+    return {stem(word) for word in WORD.findall(text.lower()) if word not in STOPWORDS}
+
+
+@dataclass
+class ExtractiveFakeProvider:
+    fallback: str = "I do not know."
+    calls: list[dict[str, Any]] = field(default_factory=list)
+
+    def complete(
+        self,
+        *,
+        model: str,
+        system_prompt: str,
+        user_input: dict[str, Any],
+        parameters: dict[str, Any],
+        timeout: float,
+        tools: Sequence[dict[str, Any]] = (),
+        history: Sequence[dict[str, Any]] = (),
+    ) -> Completion:
+        question = user_message(user_input)
+        wanted = significant_words(question)
+        best, best_score = "", 0
+        for body in SOURCE_BLOCK.findall(system_prompt):
+            for sentence in SENTENCE_SPLIT.split(html.unescape(body)):
+                score = len(wanted & significant_words(sentence))
+                if score > best_score:
+                    best, best_score = sentence.strip(), score
+        text = best if best_score else self.fallback
+        return Completion(
+            text=text,
+            usage={
+                "prompt_tokens": len(WORD.findall(f"{system_prompt} {question}".lower())),
+                "completion_tokens": len(WORD.findall(text.lower())),
+            },
         )
 
 
@@ -176,11 +263,12 @@ def build_azure_provider() -> AzureOpenAIProvider:
 PROVIDER_BUILDERS: dict[str, Callable[[], LLMProvider]] = {
     "azure": build_azure_provider,
     "fake": FakeProvider,
+    "extractive-fake": ExtractiveFakeProvider,
 }
 
 
-def get_provider() -> LLMProvider:
-    name = settings.LLM_PROVIDER
+def get_provider(name: str | None = None) -> LLMProvider:
+    name = name or settings.LLM_PROVIDER
     try:
         return PROVIDER_BUILDERS[name]()
     except KeyError as error:

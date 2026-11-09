@@ -2,7 +2,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from knowledge.chunking import split_text
-from knowledge.embeddings import EMBEDDING_DIMENSIONS, HashingEmbedder
+from knowledge.embeddings import EMBEDDING_DIMENSIONS, HashingEmbedder, stem
 from knowledge.ingestion import ingest_document
 from knowledge.models import Chunk, Document, KnowledgeBase
 from knowledge.tasks import ingest_document_task
@@ -137,3 +137,21 @@ class TestIngestion:
         document = Document.objects.get(pk=response.json()["id"])
         assert document.status == Document.Status.READY
         assert [chunk.text for chunk in document.chunks.all()] == ["Vaccines are given in spring."]
+
+
+@pytest.mark.parametrize(
+    ("word", "expected"),
+    [
+        ("parking", "park"),
+        ("vaccines", "vaccine"),
+        ("opens", "open"),
+        ("needed", "need"),
+        ("boxes", "box"),
+        ("watches", "watch"),
+        ("glass", "glass"),
+        ("bus", "bus"),
+        ("is", "is"),
+    ],
+)
+def test_stemming_folds_common_inflections(word, expected):
+    assert stem(word) == expected
