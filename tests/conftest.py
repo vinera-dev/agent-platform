@@ -39,3 +39,14 @@ def clear_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture
+def eager():
+    from config import celery_app
+
+    previous = (celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates)
+    celery_app.conf.task_always_eager = True
+    celery_app.conf.task_eager_propagates = False
+    yield
+    celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates = previous
