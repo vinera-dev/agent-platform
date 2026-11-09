@@ -143,3 +143,8 @@ MAX_TOOL_STEPS = env.int("MAX_TOOL_STEPS", default=5)
 LANGFUSE_HOST = env("LANGFUSE_HOST", default="")
 LANGFUSE_PUBLIC_KEY = env("LANGFUSE_PUBLIC_KEY", default="")
 LANGFUSE_SECRET_KEY = env("LANGFUSE_SECRET_KEY", default="")
+DEFAULT_MODEL_PRICING = {
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4o": {"input": 2.50, "output": 10.00},
+}
+MODEL_PRICING = env.json("MODEL_PRICING", default=DEFAULT_MODEL_PRICING)

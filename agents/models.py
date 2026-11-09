@@ -4,6 +4,7 @@ from django.db import models, transaction
 from django.db.models import Max
 from django.utils import timezone
 
+from agents.pricing import estimate_cost
 from tenants.models import Tenant
 from tenants.scoping import TenantQuerySet
 
@@ -106,6 +107,10 @@ class Run(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     output = models.JSONField(null=True, blank=True)
     error = models.TextField(blank=True)
+    prompt_tokens = models.PositiveIntegerField(default=0)
+    completion_tokens = models.PositiveIntegerField(default=0)
+    latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    estimated_cost_usd = models.DecimalField(max_digits=12, decimal_places=6, default=0)
     idempotency_key = models.CharField(max_length=128, blank=True, default="")
     request_fingerprint = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -143,7 +148,24 @@ class Run(models.Model):
         self._transition(self.Status.RUNNING, self.Status.SUCCEEDED)
         self.output = output
         self.finished_at = timezone.now()
-        self.save(update_fields=["status", "output", "finished_at"])
+        usage = (output or {}).get("usage") or {}
+        self.prompt_tokens = int(usage.get("prompt_tokens", 0))
+        self.completion_tokens = int(usage.get("completion_tokens", 0))
+        self.estimated_cost_usd = estimate_cost(
+            self.agent_version.model, self.prompt_tokens, self.completion_tokens
+        )
+        self._record_latency()
+        self.save(
+            update_fields=[
+                "status",
+                "output",
+                "finished_at",
+                "prompt_tokens",
+                "completion_tokens",
+                "estimated_cost_usd",
+                "latency_ms",
+            ]
+        )
 
     def mark_failed(self, error: str) -> None:
         if self.status in (self.Status.SUCCEEDED, self.Status.FAILED):
@@ -151,7 +173,12 @@ class Run(models.Model):
         self.status = self.Status.FAILED
         self.error = error
         self.finished_at = timezone.now()
-        self.save(update_fields=["status", "error", "finished_at"])
+        self._record_latency()
+        self.save(update_fields=["status", "error", "finished_at", "latency_ms"])
+
+    def _record_latency(self) -> None:
+        if self.started_at and self.finished_at:
+            self.latency_ms = int((self.finished_at - self.started_at).total_seconds() * 1000)
 
     def _transition(self, expected, new) -> None:
         if self.status != expected:

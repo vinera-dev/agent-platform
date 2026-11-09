@@ -37,6 +37,10 @@ def run_metadata(run: Run) -> dict[str, Any]:
         "agent_id": str(version.agent_id),
         "agent_version": version.number,
         "status": run.status,
+        "prompt_tokens": run.prompt_tokens,
+        "completion_tokens": run.completion_tokens,
+        "latency_ms": run.latency_ms,
+        "estimated_cost_usd": str(run.estimated_cost_usd),
     }
 
 

@@ -1746,6 +1746,25 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "prompt_tokens": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "completion_tokens": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "latency_ms": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "estimated_cost_usd": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,6})?$",
+                        "readOnly": true
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
@@ -1767,12 +1786,16 @@
                 "required": [
                     "agent_id",
                     "agent_version",
+                    "completion_tokens",
                     "created_at",
                     "error",
+                    "estimated_cost_usd",
                     "finished_at",
                     "id",
                     "input",
+                    "latency_ms",
                     "output",
+                    "prompt_tokens",
                     "started_at",
                     "status"
                 ]
