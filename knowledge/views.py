@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
@@ -11,6 +12,7 @@ from knowledge.serializers import (
     DocumentUploadSerializer,
     KnowledgeBaseSerializer,
 )
+from knowledge.tasks import ingest_document_task
 from tenants.scoping import TenantScopedViewMixin
 
 
@@ -54,7 +56,9 @@ class DocumentViewSet(
         reject_oversized_request(request)
         payload = DocumentUploadSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        document = create_document(
-            knowledge_base, payload.validated_data["file"], payload.validated_data.get("title")
-        )
+        with transaction.atomic():
+            document = create_document(
+                knowledge_base, payload.validated_data["file"], payload.validated_data.get("title")
+            )
+            transaction.on_commit(lambda: ingest_document_task.delay(str(document.id)))
         return Response(DocumentSerializer(document).data, status=status.HTTP_202_ACCEPTED)
