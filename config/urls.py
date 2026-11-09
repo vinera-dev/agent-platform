@@ -24,4 +24,5 @@ urlpatterns = [
     path("v1/", include("agents.urls")),
     path("v1/", include("knowledge.urls")),
     path("v1/", include("tools.urls")),
+    path("v1/", include("evaluation.urls")),
 ]

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "agents",
     "knowledge",
     "tools",
+    "evaluation",
 ]
 
 MIDDLEWARE = [
