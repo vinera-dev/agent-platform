@@ -1,9 +1,10 @@
+import json
 import re
 
 from django.conf import settings
 from rest_framework import serializers
 
-from agents.models import Agent, AgentVersion
+from agents.models import Agent, AgentVersion, Run
 
 MAX_PROMPT_LENGTH = 20000
 MAX_TOOLS = 20
@@ -101,3 +102,40 @@ class AgentVersionSerializer(serializers.ModelSerializer):
         if len(set(value)) != len(value):
             raise serializers.ValidationError("Tool names must be unique.")
         return value
+
+
+MAX_RUN_INPUT_BYTES = 64 * 1024
+
+
+class RunCreateSerializer(serializers.Serializer):
+    input = serializers.JSONField()
+
+    def validate_input(self, value):
+        if not isinstance(value, dict) or not value:
+            raise serializers.ValidationError("Must be a non-empty object.")
+        if len(json.dumps(value)) > MAX_RUN_INPUT_BYTES:
+            raise serializers.ValidationError(
+                f"Must not exceed {MAX_RUN_INPUT_BYTES} bytes when serialized."
+            )
+        return value
+
+
+class RunSerializer(serializers.ModelSerializer):
+    agent_id = serializers.UUIDField(source="agent_version.agent_id", read_only=True)
+    agent_version = serializers.IntegerField(source="agent_version.number", read_only=True)
+
+    class Meta:
+        model = Run
+        fields = [
+            "id",
+            "agent_id",
+            "agent_version",
+            "status",
+            "input",
+            "output",
+            "error",
+            "created_at",
+            "started_at",
+            "finished_at",
+        ]
+        read_only_fields = fields

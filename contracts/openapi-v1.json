@@ -67,6 +67,52 @@
                 }
             }
         },
+        "/v1/agents/{agent_id}/runs": {
+            "post": {
+                "operationId": "agents_runs_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "agent_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunCreateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Run"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/v1/agents/{agent_id}/versions": {
             "get": {
                 "operationId": "agents_versions_list",
@@ -584,7 +630,7 @@
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/StatusEnum"
+                                "$ref": "#/components/schemas/AgentVersionStatusEnum"
                             }
                         ],
                         "readOnly": true
@@ -639,6 +685,15 @@
                     "model",
                     "system_prompt"
                 ]
+            },
+            "AgentVersionStatusEnum": {
+                "enum": [
+                    "draft",
+                    "published",
+                    "archived"
+                ],
+                "type": "string",
+                "description": "* `draft` - Draft\n* `published` - Published\n* `archived` - Archived"
             },
             "ApiKey": {
                 "type": "object",
@@ -697,14 +752,91 @@
                     }
                 }
             },
-            "StatusEnum": {
+            "Run": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "agent_version": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/RunStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "input": {
+                        "readOnly": true
+                    },
+                    "output": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "finished_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "agent_id",
+                    "agent_version",
+                    "created_at",
+                    "error",
+                    "finished_at",
+                    "id",
+                    "input",
+                    "output",
+                    "started_at",
+                    "status"
+                ]
+            },
+            "RunCreateRequest": {
+                "type": "object",
+                "properties": {
+                    "input": {}
+                },
+                "required": [
+                    "input"
+                ]
+            },
+            "RunStatusEnum": {
                 "enum": [
-                    "draft",
-                    "published",
-                    "archived"
+                    "pending",
+                    "running",
+                    "succeeded",
+                    "failed"
                 ],
                 "type": "string",
-                "description": "* `draft` - Draft\n* `published` - Published\n* `archived` - Archived"
+                "description": "* `pending` - Pending\n* `running` - Running\n* `succeeded` - Succeeded\n* `failed` - Failed"
             },
             "TenantSummary": {
                 "type": "object",
