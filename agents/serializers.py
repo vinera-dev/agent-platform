@@ -5,6 +5,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from agents.models import Agent, AgentVersion, Run
+from knowledge.models import KnowledgeBase
 
 MAX_PROMPT_LENGTH = 20000
 MAX_TOOLS = 20
@@ -63,6 +64,9 @@ class AgentVersionSerializer(serializers.ModelSerializer):
         default=list,
         max_length=MAX_TOOLS,
     )
+    knowledge_base = serializers.UUIDField(
+        source="knowledge_base_id", required=False, allow_null=True, default=None
+    )
 
     class Meta:
         model = AgentVersion
@@ -73,6 +77,7 @@ class AgentVersionSerializer(serializers.ModelSerializer):
             "model",
             "parameters",
             "tools",
+            "knowledge_base",
             "status",
             "created_at",
             "published_at",
@@ -83,6 +88,14 @@ class AgentVersionSerializer(serializers.ModelSerializer):
         if value not in settings.ALLOWED_MODELS:
             allowed = ", ".join(settings.ALLOWED_MODELS)
             raise serializers.ValidationError(f"Unsupported model. Allowed: {allowed}.")
+        return value
+
+    def validate_knowledge_base(self, value):
+        if value is None:
+            return None
+        tenant = self.context.get("tenant")
+        if tenant is None or not KnowledgeBase.objects.for_tenant(tenant).filter(pk=value).exists():
+            raise serializers.ValidationError("Unknown knowledge base.")
         return value
 
     def validate_parameters(self, value):

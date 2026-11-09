@@ -49,6 +49,13 @@ class AgentVersion(models.Model):
     model = models.CharField(max_length=80)
     parameters = models.JSONField(default=dict, blank=True)
     tools = models.JSONField(default=list, blank=True)
+    knowledge_base = models.ForeignKey(
+        "knowledge.KnowledgeBase",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agent_versions",
+    )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)

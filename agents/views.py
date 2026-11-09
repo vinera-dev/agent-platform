@@ -60,6 +60,11 @@ class AgentVersionViewSet(
             Agent.objects.for_tenant(self.request.user.tenant), pk=self.kwargs["agent_id"]
         )
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["tenant"] = self.request.user.tenant
+        return context
+
     def get_queryset(self):
         return AgentVersion.objects.filter(agent=self.get_agent())
 

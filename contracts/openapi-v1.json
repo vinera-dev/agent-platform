@@ -1163,6 +1163,11 @@
                         },
                         "maxItems": 20
                     },
+                    "knowledge_base": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
                     "status": {
                         "allOf": [
                             {
@@ -1215,6 +1220,11 @@
                             "maxLength": 64
                         },
                         "maxItems": 20
+                    },
+                    "knowledge_base": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
                     }
                 },
                 "required": [
