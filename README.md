@@ -81,7 +81,7 @@ python manage.py spectacular --format openapi-json --file contracts/openapi-v1.j
 
 - [x] 1. Project skeleton, tenants and API key auth
 - [x] 2. Agent definitions and versioned contracts
-- [ ] 3. Asynchronous runs and run history
+- [x] 3. Asynchronous runs and run history
 - [ ] 4. Knowledge bases with RAG
 - [ ] 5. Tool registry
 - [ ] 6. Observability
