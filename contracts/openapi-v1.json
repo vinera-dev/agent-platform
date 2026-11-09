@@ -72,6 +72,14 @@
                 "operationId": "agents_runs_create",
                 "parameters": [
                     {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Repeating a request with the same key returns the original run."
+                    },
+                    {
                         "in": "path",
                         "name": "agent_id",
                         "schema": {
