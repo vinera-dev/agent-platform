@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "tenants",
     "agents",
+    "knowledge",
 ]
 
 MIDDLEWARE = [
@@ -70,16 +71,14 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {
-    "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
-}
+DATABASES = {"default": env.db("DATABASE_URL")}
 
 DATABASE_CONNECT_TIMEOUT_SECONDS = 5
 
-if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
-    DATABASES["default"].setdefault("OPTIONS", {})["connect_timeout"] = (
-        DATABASE_CONNECT_TIMEOUT_SECONDS
-    )
+if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
+    raise ImproperlyConfigured("DATABASE_URL must point to PostgreSQL with the pgvector extension.")
+
+DATABASES["default"].setdefault("OPTIONS", {})["connect_timeout"] = DATABASE_CONNECT_TIMEOUT_SECONDS
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -129,3 +128,8 @@ AZURE_OPENAI_API_VERSION = env("AZURE_OPENAI_API_VERSION", default="2024-10-21")
 RUN_TIMEOUT_SECONDS = env.float("RUN_TIMEOUT_SECONDS", default=60.0)
 RUN_MAX_RETRIES = env.int("RUN_MAX_RETRIES", default=3)
 RUN_RETRY_BACKOFF_SECONDS = env.float("RUN_RETRY_BACKOFF_SECONDS", default=2.0)
+
+EMBEDDER = env("EMBEDDER", default="hashing")
+MAX_DOCUMENT_BYTES = env.int("MAX_DOCUMENT_BYTES", default=1024 * 1024)
+CHUNK_SIZE = env.int("CHUNK_SIZE", default=800)
+CHUNK_OVERLAP = env.int("CHUNK_OVERLAP", default=100)
