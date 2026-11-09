@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from agents.models import Agent, AgentVersion, Run
 from knowledge.models import KnowledgeBase
+from tools.models import Tool
 
 MAX_PROMPT_LENGTH = 20000
 MAX_TOOLS = 20
@@ -114,6 +115,16 @@ class AgentVersionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Invalid tool names: {', '.join(invalid)}.")
         if len(set(value)) != len(value):
             raise serializers.ValidationError("Tool names must be unique.")
+        tenant = self.context.get("tenant")
+        if tenant is not None and value:
+            known = set(
+                Tool.objects.for_tenant(tenant)
+                .filter(name__in=value)
+                .values_list("name", flat=True)
+            )
+            missing = [name for name in value if name not in known]
+            if missing:
+                raise serializers.ValidationError(f"Unknown tools: {', '.join(missing)}.")
         return value
 
 

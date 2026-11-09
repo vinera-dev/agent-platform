@@ -47,6 +47,7 @@ def test_successful_run_stores_output_and_times(run, provider, eager):
         "text": "answer: hi",
         "usage": {"prompt_tokens": 1, "completion_tokens": 1},
         "sources": [],
+        "tool_calls": [],
     }
     assert run.started_at is not None and run.finished_at is not None
 
@@ -61,6 +62,8 @@ def test_provider_receives_the_version_settings(run, provider, eager):
             "user_input": {"message": "hi"},
             "parameters": {"temperature": 0.1},
             "timeout": 12.5,
+            "tools": [],
+            "history": [],
         }
     ]
 

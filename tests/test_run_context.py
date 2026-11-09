@@ -89,7 +89,7 @@ def test_retrieval_failure_fails_the_run(tenant, knowledge_base, provider, monke
     def broken(*args, **kwargs):
         raise RuntimeError("index offline")
 
-    monkeypatch.setattr("agents.tasks.search_chunks", broken)
+    monkeypatch.setattr("agents.execution.search_chunks", broken)
     run = make_run(tenant, knowledge_base, "vaccines")
 
     execute_run.apply(args=[str(run.id)], throw=True)

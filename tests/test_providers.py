@@ -7,8 +7,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 from agents.providers import (
     AzureOpenAIProvider,
+    Completion,
     FakeProvider,
     ProviderError,
+    ToolCall,
     TransientProviderError,
     get_provider,
     user_message,
@@ -62,7 +64,7 @@ def test_fake_provider_records_calls_and_never_touches_the_network():
     completion = provider.complete(**CALL)
 
     assert completion.text == "echo: hi"
-    assert provider.calls == [CALL]
+    assert provider.calls == [{**CALL, "tools": [], "history": []}]
 
 
 def test_fake_provider_raises_scripted_failures_first():
@@ -150,3 +152,54 @@ def test_azure_provider_builds_with_credentials(settings):
     settings.AZURE_OPENAI_API_KEY = "test-key"
 
     assert isinstance(get_provider(), AzureOpenAIProvider)
+
+
+def tool_call_response():
+    function = SimpleNamespace(name="lookup_slots", arguments='{"date": "2026-01-05"}')
+    message = SimpleNamespace(
+        content=None, tool_calls=[SimpleNamespace(id="call_1", function=function)]
+    )
+    usage = SimpleNamespace(prompt_tokens=4, completion_tokens=2)
+    return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
+
+
+def test_azure_provider_sends_tool_specs_and_history():
+    client = StubClient(response("done"))
+    history = [{"role": "assistant", "content": None, "tool_calls": []}]
+    spec = {"name": "lookup_slots", "description": "d", "parameters": {"type": "object"}}
+
+    AzureOpenAIProvider(client).complete(**CALL, tools=[spec], history=history)
+
+    sent = client.requests[0]
+    assert sent["tools"] == [{"type": "function", "function": spec}]
+    assert sent["messages"][-1] == history[0]
+
+
+def test_azure_provider_omits_tools_when_there_are_none():
+    client = StubClient(response("done"))
+
+    AzureOpenAIProvider(client).complete(**CALL)
+
+    assert "tools" not in client.requests[0]
+
+
+def test_azure_provider_parses_tool_calls():
+    completion = AzureOpenAIProvider(StubClient(tool_call_response())).complete(**CALL)
+
+    assert completion.text == ""
+    assert completion.tool_calls == (ToolCall("call_1", "lookup_slots", {"date": "2026-01-05"}),)
+
+
+def test_azure_provider_keeps_unparseable_arguments_as_text():
+    reply = tool_call_response()
+    reply.choices[0].message.tool_calls[0].function.arguments = "{not json"
+
+    completion = AzureOpenAIProvider(StubClient(reply)).complete(**CALL)
+
+    assert completion.tool_calls[0].arguments == "{not json"
+
+
+def test_fake_provider_replays_a_script_in_order():
+    provider = FakeProvider(script=[Completion("one"), Completion("two")])
+
+    assert [provider.complete(**CALL).text for _ in range(3)] == ["one", "two", "fake reply: hi"]

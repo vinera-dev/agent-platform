@@ -68,6 +68,10 @@ class AgentVersionViewSet(
     def get_queryset(self):
         return AgentVersion.objects.filter(agent=self.get_agent())
 
+    def create(self, request, *args, **kwargs):
+        self.get_agent()
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         agent = self.get_agent()
         serializer.instance = agent.new_version(**serializer.validated_data)

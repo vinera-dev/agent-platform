@@ -1,5 +1,5 @@
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -16,9 +16,17 @@ class TransientProviderError(ProviderError):
 
 
 @dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    arguments: Any
+
+
+@dataclass(frozen=True)
 class Completion:
     text: str
     usage: dict[str, int] = field(default_factory=dict)
+    tool_calls: tuple[ToolCall, ...] = ()
 
 
 class LLMProvider(Protocol):
@@ -30,6 +38,8 @@ class LLMProvider(Protocol):
         user_input: dict[str, Any],
         parameters: dict[str, Any],
         timeout: float,
+        tools: Sequence[dict[str, Any]] = (),
+        history: Sequence[dict[str, Any]] = (),
     ) -> Completion: ...
 
 
@@ -44,6 +54,7 @@ def user_message(user_input: dict[str, Any]) -> str:
 class FakeProvider:
     reply: str = "fake reply"
     failures: list[Exception] = field(default_factory=list)
+    script: list[Completion] = field(default_factory=list)
     calls: list[dict[str, Any]] = field(default_factory=list)
 
     def complete(
@@ -54,6 +65,8 @@ class FakeProvider:
         user_input: dict[str, Any],
         parameters: dict[str, Any],
         timeout: float,
+        tools: Sequence[dict[str, Any]] = (),
+        history: Sequence[dict[str, Any]] = (),
     ) -> Completion:
         self.calls.append(
             {
@@ -62,10 +75,14 @@ class FakeProvider:
                 "user_input": user_input,
                 "parameters": parameters,
                 "timeout": timeout,
+                "tools": list(tools),
+                "history": [dict(message) for message in history],
             }
         )
         if self.failures:
             raise self.failures.pop(0)
+        if self.script:
+            return self.script.pop(0)
         return Completion(
             text=f"{self.reply}: {user_message(user_input)}",
             usage={"prompt_tokens": 1, "completion_tokens": 1},
@@ -84,17 +101,24 @@ class AzureOpenAIProvider:
         user_input: dict[str, Any],
         parameters: dict[str, Any],
         timeout: float,
+        tools: Sequence[dict[str, Any]] = (),
+        history: Sequence[dict[str, Any]] = (),
     ) -> Completion:
         import openai
 
+        extra: dict[str, Any] = {}
+        if tools:
+            extra["tools"] = [{"type": "function", "function": dict(spec)} for spec in tools]
         try:
             response = self._client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message(user_input)},
+                    *history,
                 ],
                 timeout=timeout,
+                **extra,
                 **parameters,
             )
         except (openai.APITimeoutError, openai.APIConnectionError, openai.RateLimitError) as error:
@@ -106,13 +130,26 @@ class AzureOpenAIProvider:
         if not response.choices:
             raise ProviderError("The provider returned no choices.")
         usage = response.usage
+        message = response.choices[0].message
         return Completion(
-            text=response.choices[0].message.content or "",
+            text=message.content or "",
+            tool_calls=tuple(parse_tool_calls(getattr(message, "tool_calls", None))),
             usage={
                 "prompt_tokens": getattr(usage, "prompt_tokens", 0),
                 "completion_tokens": getattr(usage, "completion_tokens", 0),
             },
         )
+
+
+def parse_tool_calls(raw_calls: Any) -> list[ToolCall]:
+    calls = []
+    for raw in raw_calls or []:
+        try:
+            arguments = json.loads(raw.function.arguments or "{}")
+        except ValueError:
+            arguments = raw.function.arguments
+        calls.append(ToolCall(id=raw.id, name=raw.function.name, arguments=arguments))
+    return calls
 
 
 def build_azure_provider() -> AzureOpenAIProvider:

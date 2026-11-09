@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 
 from agents.models import Agent, AgentVersion
 from tenants.models import ApiKey
+from tools.models import Tool
 
 pytestmark = pytest.mark.django_db
 
@@ -21,6 +22,13 @@ def client(issued_key, client_for):
 
 @pytest.fixture
 def agent(tenant):
+    Tool.objects.create(
+        tenant=tenant,
+        name="lookup_slots",
+        description="Find slots.",
+        input_schema={"type": "object"},
+        endpoint_url="https://scheduler.example.com/slots",
+    )
     return Agent.objects.create(tenant=tenant, name="Support")
 
 
