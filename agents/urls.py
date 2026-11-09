@@ -1,10 +1,11 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter
 
-from agents.views import AgentRunViewSet, AgentVersionViewSet, AgentViewSet
+from agents.views import AgentRunViewSet, AgentVersionViewSet, AgentViewSet, RunViewSet
 
 router = SimpleRouter(trailing_slash=False)
 router.register("agents", AgentViewSet, basename="agent")
+router.register("runs", RunViewSet, basename="run")
 
 version_list = AgentVersionViewSet.as_view({"get": "list", "post": "create"})
 version_detail = AgentVersionViewSet.as_view({"get": "retrieve"})

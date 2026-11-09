@@ -106,7 +106,7 @@ class Run(models.Model):
     objects = TenantQuerySet.as_manager()
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["tenant", "-created_at"])]
 
     def __str__(self) -> str:

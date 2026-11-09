@@ -1,12 +1,16 @@
+from uuid import UUID
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
 
 from agents.models import Agent, AgentVersion, InvalidTransition, Run
+from agents.pagination import DefaultPagination
 from agents.serializers import (
     AgentSerializer,
     AgentVersionSerializer,
@@ -92,3 +96,37 @@ class AgentRunViewSet(viewsets.GenericViewSet):
         )
         transaction.on_commit(lambda: execute_run.delay(str(run.id)))
         return Response(RunSerializer(run).data, status=status.HTTP_202_ACCEPTED)
+
+
+class RunViewSet(
+    TenantScopedViewMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    serializer_class = RunSerializer
+    pagination_class = DefaultPagination
+    queryset = Run.objects.select_related("agent_version")
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        status_filter = self.request.query_params.get("status")
+        agent_filter = self.request.query_params.get("agent")
+        if status_filter:
+            if status_filter not in Run.Status.values:
+                raise ValidationError(
+                    {"status": f"Must be one of: {', '.join(Run.Status.values)}."}
+                )
+            queryset = queryset.filter(status=status_filter)
+        if agent_filter:
+            try:
+                queryset = queryset.filter(agent_version__agent_id=UUID(agent_filter))
+            except ValueError as error:
+                raise ValidationError({"agent": "Must be a valid UUID."}) from error
+        return queryset
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("status", enum=Run.Status.values, required=False),
+            OpenApiParameter("agent", type=OpenApiTypes.UUID, required=False),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
