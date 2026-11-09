@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter
 
-from agents.views import AgentRunViewSet, AgentVersionViewSet, AgentViewSet, RunViewSet
+from agents.views import AgentRunViewSet, AgentVersionViewSet, AgentViewSet, RunViewSet, UsageView
 
 router = SimpleRouter(trailing_slash=False)
 router.register("agents", AgentViewSet, basename="agent")
@@ -15,6 +15,7 @@ version_archive = AgentVersionViewSet.as_view({"post": "archive"})
 run_create = AgentRunViewSet.as_view({"post": "create"})
 
 urlpatterns = [
+    path("usage", UsageView.as_view()),
     path("agents/<uuid:agent_id>/runs", run_create),
     path("agents/<uuid:agent_id>/versions", version_list),
     path("agents/<uuid:agent_id>/versions/<uuid:pk>", version_detail),

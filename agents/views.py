@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
@@ -8,6 +9,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from agents.idempotency import read_idempotency_key, request_fingerprint
 from agents.models import Agent, AgentVersion, InvalidTransition, Run
@@ -17,8 +19,10 @@ from agents.serializers import (
     AgentVersionSerializer,
     RunCreateSerializer,
     RunSerializer,
+    UsageResponseSerializer,
 )
 from agents.tasks import execute_run
+from agents.usage import filter_period, summarize
 from tenants.scoping import TenantScopedViewMixin
 
 
@@ -184,3 +188,38 @@ class RunViewSet(
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+
+def parse_date_param(params, name):
+    value = params.get(name)
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError as error:
+        raise ValidationError({name: "Must be a date in YYYY-MM-DD format."}) from error
+
+
+class UsageView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("from", type=OpenApiTypes.DATE, required=False),
+            OpenApiParameter("to", type=OpenApiTypes.DATE, required=False),
+        ],
+        responses=UsageResponseSerializer,
+    )
+    def get(self, request):
+        start = parse_date_param(request.query_params, "from")
+        end = parse_date_param(request.query_params, "to")
+        if start and end and start > end:
+            raise ValidationError({"from": "Must not be after the end date."})
+        runs = filter_period(Run.objects.for_tenant(request.user.tenant), start, end)
+        return Response(
+            {
+                "period": {
+                    "from": start.isoformat() if start else None,
+                    "to": end.isoformat() if end else None,
+                },
+                **summarize(runs),
+            }
+        )

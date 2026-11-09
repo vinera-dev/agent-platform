@@ -1264,6 +1264,49 @@
                 }
             }
         },
+        "/v1/usage": {
+            "get": {
+                "operationId": "usage_retrieve",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "from",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "to",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "tags": [
+                    "usage"
+                ],
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UsageResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/v1/whoami": {
             "get": {
                 "operationId": "whoami_retrieve",
@@ -1347,6 +1390,56 @@
                 },
                 "required": [
                     "name"
+                ]
+            },
+            "AgentUsage": {
+                "type": "object",
+                "properties": {
+                    "runs": {
+                        "type": "integer"
+                    },
+                    "succeeded": {
+                        "type": "integer"
+                    },
+                    "failed": {
+                        "type": "integer"
+                    },
+                    "prompt_tokens": {
+                        "type": "integer"
+                    },
+                    "completion_tokens": {
+                        "type": "integer"
+                    },
+                    "total_tokens": {
+                        "type": "integer"
+                    },
+                    "estimated_cost_usd": {
+                        "type": "string"
+                    },
+                    "average_latency_ms": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "agent_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "agent_id",
+                    "agent_name",
+                    "average_latency_ms",
+                    "completion_tokens",
+                    "estimated_cost_usd",
+                    "failed",
+                    "prompt_tokens",
+                    "runs",
+                    "succeeded",
+                    "total_tokens"
                 ]
             },
             "AgentVersion": {
@@ -2063,6 +2156,74 @@
                     "endpoint_url",
                     "input_schema",
                     "name"
+                ]
+            },
+            "UsageResponse": {
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "format": "date",
+                            "nullable": true
+                        }
+                    },
+                    "totals": {
+                        "$ref": "#/components/schemas/UsageTotals"
+                    },
+                    "by_agent": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AgentUsage"
+                        }
+                    }
+                },
+                "required": [
+                    "by_agent",
+                    "period",
+                    "totals"
+                ]
+            },
+            "UsageTotals": {
+                "type": "object",
+                "properties": {
+                    "runs": {
+                        "type": "integer"
+                    },
+                    "succeeded": {
+                        "type": "integer"
+                    },
+                    "failed": {
+                        "type": "integer"
+                    },
+                    "prompt_tokens": {
+                        "type": "integer"
+                    },
+                    "completion_tokens": {
+                        "type": "integer"
+                    },
+                    "total_tokens": {
+                        "type": "integer"
+                    },
+                    "estimated_cost_usd": {
+                        "type": "string"
+                    },
+                    "average_latency_ms": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "average_latency_ms",
+                    "completion_tokens",
+                    "estimated_cost_usd",
+                    "failed",
+                    "prompt_tokens",
+                    "runs",
+                    "succeeded",
+                    "total_tokens"
                 ]
             },
             "WhoAmI": {

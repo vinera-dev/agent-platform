@@ -167,3 +167,25 @@ class RunSerializer(serializers.ModelSerializer):
             "finished_at",
         ]
         read_only_fields = fields
+
+
+class UsageTotalsSerializer(serializers.Serializer):
+    runs = serializers.IntegerField()
+    succeeded = serializers.IntegerField()
+    failed = serializers.IntegerField()
+    prompt_tokens = serializers.IntegerField()
+    completion_tokens = serializers.IntegerField()
+    total_tokens = serializers.IntegerField()
+    estimated_cost_usd = serializers.CharField()
+    average_latency_ms = serializers.FloatField(allow_null=True)
+
+
+class AgentUsageSerializer(UsageTotalsSerializer):
+    agent_id = serializers.UUIDField()
+    agent_name = serializers.CharField()
+
+
+class UsageResponseSerializer(serializers.Serializer):
+    period = serializers.DictField(child=serializers.DateField(allow_null=True))
+    totals = UsageTotalsSerializer()
+    by_agent = AgentUsageSerializer(many=True)
