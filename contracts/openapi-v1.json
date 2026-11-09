@@ -746,6 +746,52 @@
                 }
             }
         },
+        "/v1/knowledge-bases/{knowledge_base_id}/search": {
+            "post": {
+                "operationId": "knowledge_bases_search_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "knowledge_base_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "knowledge-bases"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SearchRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/v1/knowledge-bases/{id}": {
             "get": {
                 "operationId": "knowledge_bases_retrieve",
@@ -1499,6 +1545,72 @@
                 ],
                 "type": "string",
                 "description": "* `pending` - Pending\n* `running` - Running\n* `succeeded` - Succeeded\n* `failed` - Failed"
+            },
+            "SearchHit": {
+                "type": "object",
+                "properties": {
+                    "chunk_id": {
+                        "type": "integer"
+                    },
+                    "document_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "document_title": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "type": "integer"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "score": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "chunk_id",
+                    "document_id",
+                    "document_title",
+                    "position",
+                    "score",
+                    "text"
+                ]
+            },
+            "SearchRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 20,
+                        "minimum": 1,
+                        "default": 5
+                    }
+                },
+                "required": [
+                    "query"
+                ]
+            },
+            "SearchResponse": {
+                "type": "object",
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SearchHit"
+                        }
+                    }
+                },
+                "required": [
+                    "results"
+                ]
             },
             "TenantSummary": {
                 "type": "object",

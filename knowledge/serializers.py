@@ -44,3 +44,21 @@ class DocumentSerializer(serializers.ModelSerializer):
 class DocumentUploadSerializer(serializers.Serializer):
     file = serializers.FileField(allow_empty_file=False)
     title = serializers.CharField(max_length=255, required=False, allow_blank=False)
+
+
+class SearchRequestSerializer(serializers.Serializer):
+    query = serializers.CharField(max_length=2000, trim_whitespace=True)
+    limit = serializers.IntegerField(min_value=1, max_value=20, default=5)
+
+
+class SearchHitSerializer(serializers.Serializer):
+    chunk_id = serializers.IntegerField()
+    document_id = serializers.UUIDField()
+    document_title = serializers.CharField()
+    position = serializers.IntegerField()
+    text = serializers.CharField()
+    score = serializers.FloatField()
+
+
+class SearchResponseSerializer(serializers.Serializer):
+    results = SearchHitSerializer(many=True)

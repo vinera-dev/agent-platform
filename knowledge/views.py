@@ -7,10 +7,14 @@ from rest_framework.response import Response
 
 from knowledge.documents import create_document, reject_oversized_request
 from knowledge.models import Document, KnowledgeBase
+from knowledge.search import search_chunks
 from knowledge.serializers import (
     DocumentSerializer,
     DocumentUploadSerializer,
     KnowledgeBaseSerializer,
+    SearchHitSerializer,
+    SearchRequestSerializer,
+    SearchResponseSerializer,
 )
 from knowledge.tasks import ingest_document_task
 from tenants.scoping import TenantScopedViewMixin
@@ -62,3 +66,22 @@ class DocumentViewSet(
             )
             transaction.on_commit(lambda: ingest_document_task.delay(str(document.id)))
         return Response(DocumentSerializer(document).data, status=status.HTTP_202_ACCEPTED)
+
+
+class SearchViewSet(viewsets.GenericViewSet):
+    serializer_class = SearchRequestSerializer
+
+    @extend_schema(request=SearchRequestSerializer, responses=SearchResponseSerializer)
+    def create(self, request, knowledge_base_id=None):
+        knowledge_base = get_object_or_404(
+            KnowledgeBase.objects.for_tenant(request.user.tenant), pk=knowledge_base_id
+        )
+        payload = SearchRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        hits = search_chunks(
+            request.user.tenant,
+            payload.validated_data["query"],
+            knowledge_base=knowledge_base,
+            limit=payload.validated_data["limit"],
+        )
+        return Response({"results": SearchHitSerializer(hits, many=True).data})
