@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
 
+from agents.idempotency import read_idempotency_key, request_fingerprint
 from agents.models import Agent, AgentVersion, InvalidTransition, Run
 from agents.pagination import DefaultPagination
 from agents.serializers import (
@@ -25,6 +26,12 @@ class Conflict(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_detail = "The request conflicts with the current state."
     default_code = "conflict"
+
+
+class IdempotencyKeyReused(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_detail = "This Idempotency-Key was already used with a different request."
+    default_code = "idempotency_key_reused"
 
 
 class AgentViewSet(TenantScopedViewMixin, viewsets.ModelViewSet):
@@ -82,20 +89,58 @@ class AgentVersionViewSet(
 class AgentRunViewSet(viewsets.GenericViewSet):
     serializer_class = RunCreateSerializer
 
-    @extend_schema(request=RunCreateSerializer, responses={202: RunSerializer})
+    @extend_schema(
+        request=RunCreateSerializer,
+        responses={202: RunSerializer},
+        parameters=[
+            OpenApiParameter(
+                "Idempotency-Key",
+                location=OpenApiParameter.HEADER,
+                required=False,
+                description="Repeating a request with the same key returns the original run.",
+            )
+        ],
+    )
     def create(self, request, agent_id=None):
         tenant = request.user.tenant
         agent = get_object_or_404(Agent.objects.for_tenant(tenant), pk=agent_id)
+        payload = RunCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        key = read_idempotency_key(request)
+        fingerprint = request_fingerprint(agent.pk, payload.validated_data["input"])
+        if key:
+            replay = self._replay(tenant, key, fingerprint)
+            if replay is not None:
+                return replay
         version = agent.versions.filter(status=AgentVersion.Status.PUBLISHED).first()
         if version is None:
             raise Conflict("The agent has no published version.")
-        payload = RunCreateSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
-        run = Run.objects.create(
-            tenant=tenant, agent_version=version, input=payload.validated_data["input"]
-        )
+        try:
+            with transaction.atomic():
+                run = Run.objects.create(
+                    tenant=tenant,
+                    agent_version=version,
+                    input=payload.validated_data["input"],
+                    idempotency_key=key or "",
+                    request_fingerprint=fingerprint,
+                )
+        except IntegrityError:
+            replay = self._replay(tenant, key, fingerprint) if key else None
+            if replay is None:
+                raise
+            return replay
         transaction.on_commit(lambda: execute_run.delay(str(run.id)))
         return Response(RunSerializer(run).data, status=status.HTTP_202_ACCEPTED)
+
+    def _replay(self, tenant, key, fingerprint):
+        existing = Run.objects.for_tenant(tenant).filter(idempotency_key=key).first()
+        if existing is None:
+            return None
+        if existing.request_fingerprint != fingerprint:
+            raise IdempotencyKeyReused()
+        response = Response(RunSerializer(existing).data, status=status.HTTP_202_ACCEPTED)
+        response["Idempotent-Replayed"] = "true"
+        return response
 
 
 class RunViewSet(

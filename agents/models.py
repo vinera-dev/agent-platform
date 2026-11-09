@@ -99,6 +99,8 @@ class Run(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     output = models.JSONField(null=True, blank=True)
     error = models.TextField(blank=True)
+    idempotency_key = models.CharField(max_length=128, blank=True, default="")
+    request_fingerprint = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -108,6 +110,13 @@ class Run(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["tenant", "-created_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="run_unique_idempotency_key_per_tenant",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"run {self.id} ({self.status})"
