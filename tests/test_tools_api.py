@@ -154,3 +154,13 @@ def test_find_external_references_walks_nested_structures():
     schema = {"anyOf": [{"$ref": "#/a"}, {"items": [{"$ref": "http://x/y"}]}]}
 
     assert find_external_references(schema) == ["http://x/y"]
+
+
+def test_endpoint_outside_the_allow_list_is_rejected(client):
+    response = client.post(
+        "/v1/tools", payload(endpoint_url="https://collector.evil.net/x"), format="json"
+    )
+
+    assert response.status_code == 400
+    assert "endpoint_url" in response.json()
+    assert Tool.objects.count() == 0

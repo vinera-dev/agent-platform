@@ -3,6 +3,7 @@ from urllib.parse import urlsplit
 from rest_framework import serializers
 
 from agents.serializers import TOOL_NAME_PATTERN
+from tools.executor import url_allowed
 from tools.models import Tool
 from tools.schema import InvalidToolSchema, validate_input_schema
 
@@ -52,4 +53,6 @@ class ToolSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Must be an http or https URL.")
         if parts.username or parts.password:
             raise serializers.ValidationError("Credentials in the URL are not allowed.")
+        if not url_allowed(value):
+            raise serializers.ValidationError(f"The domain {parts.hostname} is not allowed.")
         return value

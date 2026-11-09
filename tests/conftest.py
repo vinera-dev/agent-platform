@@ -50,3 +50,8 @@ def eager():
     celery_app.conf.task_eager_propagates = False
     yield
     celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates = previous
+
+
+@pytest.fixture(autouse=True)
+def allowed_tool_domains(settings):
+    settings.TOOL_ALLOWED_DOMAINS = ["example.com"]
