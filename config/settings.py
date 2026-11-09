@@ -148,3 +148,14 @@ DEFAULT_MODEL_PRICING = {
     "gpt-4o": {"input": 2.50, "output": 10.00},
 }
 MODEL_PRICING = env.json("MODEL_PRICING", default=DEFAULT_MODEL_PRICING)
+
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"json": {"()": "config.logs.JsonFormatter"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "json"}},
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {"celery": {"level": "WARNING"}, "django.server": {"level": "WARNING"}},
+}

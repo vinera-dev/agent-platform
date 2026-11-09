@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -16,6 +17,8 @@ from tools.executor import ToolExecutionError, execute_tool
 from tools.models import Tool
 
 SNIPPET_LENGTH = 200
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionError(Exception):
@@ -121,6 +124,7 @@ def timed_tool_call(
 ) -> dict[str, Any]:
     started_at = timezone.now()
     record = run_tool_call(call, tools)
+    logger.info("tool call", extra={"tool": call.name, "ok": record["ok"]})
     if events is not None:
         events.append(
             TraceEvent(

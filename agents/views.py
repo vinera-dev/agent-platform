@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from uuid import UUID
 
@@ -23,7 +24,10 @@ from agents.serializers import (
 )
 from agents.tasks import execute_run
 from agents.usage import filter_period, summarize
+from config.logs import bind_log_context
 from tenants.scoping import TenantScopedViewMixin
+
+logger = logging.getLogger(__name__)
 
 
 class Conflict(APIException):
@@ -142,6 +146,8 @@ class AgentRunViewSet(viewsets.GenericViewSet):
             if replay is None:
                 raise
             return replay
+        with bind_log_context(tenant_id=tenant.id, run_id=run.id):
+            logger.info("run created", extra={"agent_id": str(agent.id)})
         transaction.on_commit(lambda: execute_run.delay(str(run.id)))
         return Response(RunSerializer(run).data, status=status.HTTP_202_ACCEPTED)
 
