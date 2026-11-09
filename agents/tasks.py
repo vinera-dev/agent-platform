@@ -7,6 +7,7 @@ from agents.prompting import build_system_prompt
 from agents.providers import ProviderError, TransientProviderError, get_provider, user_message
 from knowledge.search import search_chunks
 
+SNIPPET_LENGTH = 200
 RETRIEVAL_ERROR = "Knowledge retrieval failed: {detail}"
 TIMEOUT_ERROR = "The run exceeded the time limit."
 RETRIES_EXHAUSTED_ERROR = "The provider kept failing after {attempts} attempts: {detail}"
@@ -23,6 +24,17 @@ def retrieve_context(run: Run) -> list:
         limit=settings.RETRIEVAL_TOP_K,
     )
     return [hit for hit in hits if hit.score >= settings.RETRIEVAL_MIN_SCORE]
+
+
+def source_payload(hit) -> dict:
+    return {
+        "document_id": hit.document_id,
+        "document_title": hit.document_title,
+        "chunk_id": hit.chunk_id,
+        "position": hit.position,
+        "score": hit.score,
+        "snippet": hit.text[:SNIPPET_LENGTH],
+    }
 
 
 def retry_delay(retries: int) -> float:
@@ -67,5 +79,11 @@ def execute_run(self, run_id: str) -> str:
     except ProviderError as error:
         run.mark_failed(str(error))
     else:
-        run.mark_succeeded({"text": completion.text, "usage": completion.usage})
+        run.mark_succeeded(
+            {
+                "text": completion.text,
+                "usage": completion.usage,
+                "sources": [source_payload(hit) for hit in hits],
+            }
+        )
     return run_id

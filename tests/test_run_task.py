@@ -46,6 +46,7 @@ def test_successful_run_stores_output_and_times(run, provider, eager):
     assert run.output == {
         "text": "answer: hi",
         "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        "sources": [],
     }
     assert run.started_at is not None and run.finished_at is not None
 

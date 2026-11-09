@@ -6,7 +6,7 @@ from agents.providers import FakeProvider
 from agents.tasks import RETRIEVAL_ERROR, execute_run
 from knowledge.ingestion import ingest_document
 from knowledge.models import Document, KnowledgeBase
-from knowledge.search import SearchHit
+from knowledge.search import SearchHit, search_chunks
 
 pytestmark = pytest.mark.django_db
 
@@ -166,3 +166,66 @@ def test_version_api_defaults_to_no_knowledge_base(tenant, issued_key, client_fo
 
     assert response.status_code == 201
     assert response.json()["knowledge_base"] is None
+
+
+def test_run_output_lists_the_sources(tenant, knowledge_base, provider):
+    run = make_run(tenant, knowledge_base, "when are puppy vaccines given")
+
+    execute_run.apply(args=[str(run.id)], throw=True)
+
+    run.refresh_from_db()
+    sources = run.output["sources"]
+    assert sources[0]["document_title"] == "Vaccines"
+    assert sources[0]["snippet"] == VACCINES
+    assert sources[0]["position"] == 0
+    assert 0.1 <= sources[0]["score"] <= 1
+    assert {source["document_title"] for source in sources} <= {"Vaccines", "Hours"}
+    assert [source["document_title"] for source in sources] == [
+        hit.document_title
+        for hit in search_chunks(tenant, run.input["message"])
+        if hit.score >= 0.1
+    ]
+
+
+def test_sources_are_returned_by_the_runs_api(
+    tenant,
+    issued_key,
+    client_for,
+    knowledge_base,
+    provider,
+    eager,
+    django_capture_on_commit_callbacks,
+):
+    agent = Agent.objects.create(tenant=tenant, name="Support")
+    agent.new_version(
+        system_prompt="Be helpful.", model="gpt-4o-mini", knowledge_base=knowledge_base
+    ).publish()
+    client = client_for(issued_key.raw_key)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        created = client.post(
+            f"/v1/agents/{agent.pk}/runs",
+            {"input": {"message": "when does the clinic open"}},
+            format="json",
+        )
+    body = client.get(f"/v1/runs/{created.json()['id']}").json()
+
+    assert body["status"] == "succeeded"
+    assert body["output"]["sources"][0]["document_title"] == "Hours"
+    assert set(body["output"]["sources"][0]) == {
+        "document_id",
+        "document_title",
+        "chunk_id",
+        "position",
+        "score",
+        "snippet",
+    }
+
+
+def test_run_without_a_knowledge_base_has_no_sources(tenant, provider):
+    run = make_run(tenant, None, "hello")
+
+    execute_run.apply(args=[str(run.id)], throw=True)
+
+    run.refresh_from_db()
+    assert run.output["sources"] == []
