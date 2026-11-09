@@ -27,5 +27,51 @@ services:
       timeout: 3s
       retries: 10
 
+  langfuse-db:
+    profiles: ["observability"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD:-langfuse-local-only}
+    volumes:
+      - langfuse-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  langfuse:
+    profiles: ["observability"]
+    image: langfuse/langfuse:2
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${LANGFUSE_PORT:-24300}:3000"
+    environment:
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-langfuse-local-only}@langfuse-db:5432/langfuse
+      NEXTAUTH_URL: http://127.0.0.1:${LANGFUSE_PORT:-24300}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-langfuse-local-only-nextauth-secret}
+      SALT: ${LANGFUSE_SALT:-langfuse-local-only-salt}
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_INIT_ORG_ID: agent-platform
+      LANGFUSE_INIT_ORG_NAME: Agent Platform
+      LANGFUSE_INIT_PROJECT_ID: agent-platform
+      LANGFUSE_INIT_PROJECT_NAME: Agent Platform
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-agent-platform-local}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-agent-platform-local}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_USER_EMAIL:-admin@example.com}
+      LANGFUSE_INIT_USER_NAME: Admin
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_USER_PASSWORD:-change-me-local-only}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/public/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+
 volumes:
   pgdata:
+  langfuse-pgdata:

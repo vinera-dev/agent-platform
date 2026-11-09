@@ -2,9 +2,10 @@ from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 
-from agents.execution import ExecutionError, RetrievalFailed, generate
+from agents.execution import ExecutionError, RetrievalFailed, TraceEvent, generate
 from agents.models import Run
 from agents.providers import ProviderError, TransientProviderError, get_provider
+from agents.tracing import trace_run_safely
 
 RETRIEVAL_ERROR = "Knowledge retrieval failed: {detail}"
 TIMEOUT_ERROR = "The run exceeded the time limit."
@@ -24,6 +25,7 @@ def execute_run(self, run_id: str) -> str:
         return run_id
     if run.status == Run.Status.PENDING:
         run.mark_running()
+    events: list[TraceEvent] = []
     try:
         result = generate(
             tenant=run.tenant,
@@ -31,6 +33,7 @@ def execute_run(self, run_id: str) -> str:
             user_input=run.input,
             provider=get_provider(),
             timeout=settings.RUN_TIMEOUT_SECONDS,
+            events=events,
         )
     except SoftTimeLimitExceeded:
         run.mark_failed(TIMEOUT_ERROR)
@@ -50,4 +53,5 @@ def execute_run(self, run_id: str) -> str:
         run.mark_failed(str(error))
     else:
         run.mark_succeeded(result.as_output())
+    trace_run_safely(run, events)
     return run_id

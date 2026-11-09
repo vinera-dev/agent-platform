@@ -1,9 +1,11 @@
 import json
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from django.conf import settings
+from django.utils import timezone
 
 from agents.models import AgentVersion
 from agents.prompting import build_system_prompt
@@ -26,6 +28,19 @@ class RetrievalFailed(ExecutionError):
 
 class ToolStepLimitExceeded(ExecutionError):
     pass
+
+
+@dataclass
+class TraceEvent:
+    kind: str
+    name: str
+    started_at: datetime
+    ended_at: datetime
+    input: Any = None
+    output: Any = None
+    model: str = ""
+    usage: dict[str, int] = field(default_factory=dict)
+    error: str = ""
 
 
 @dataclass
@@ -101,6 +116,26 @@ def assistant_message(completion: Completion) -> dict[str, Any]:
     }
 
 
+def timed_tool_call(
+    call: ToolCall, tools: dict[str, Tool], events: list[TraceEvent] | None
+) -> dict[str, Any]:
+    started_at = timezone.now()
+    record = run_tool_call(call, tools)
+    if events is not None:
+        events.append(
+            TraceEvent(
+                kind="tool",
+                name=call.name,
+                started_at=started_at,
+                ended_at=timezone.now(),
+                input=call.arguments,
+                output=record.get("result"),
+                error=record.get("error", ""),
+            )
+        )
+    return record
+
+
 def run_tool_call(call: ToolCall, tools: dict[str, Tool]) -> dict[str, Any]:
     record: dict[str, Any] = {"name": call.name, "arguments": call.arguments}
     tool = tools.get(call.name)
@@ -118,6 +153,35 @@ def tool_message(call: ToolCall, record: dict[str, Any]) -> dict[str, Any]:
     return {"role": "tool", "tool_call_id": call.id, "content": json.dumps(payload)}
 
 
+def generation_event(
+    version: AgentVersion,
+    user_input: dict,
+    history: list[dict[str, Any]],
+    started_at: datetime,
+    completion: Completion | None = None,
+    error: str = "",
+) -> TraceEvent:
+    output = None
+    if completion is not None:
+        output = {
+            "text": completion.text,
+            "tool_calls": [
+                {"name": call.name, "arguments": call.arguments} for call in completion.tool_calls
+            ],
+        }
+    return TraceEvent(
+        kind="generation",
+        name="llm-call",
+        started_at=started_at,
+        ended_at=timezone.now(),
+        input={"input": user_input, "history": list(history)},
+        output=output,
+        model=version.model,
+        usage=dict(completion.usage) if completion is not None else {},
+        error=error,
+    )
+
+
 def generate(
     *,
     tenant: Tenant,
@@ -125,6 +189,7 @@ def generate(
     user_input: dict,
     provider: LLMProvider,
     timeout: float,
+    events: list[TraceEvent] | None = None,
 ) -> ExecutionResult:
     hits = retrieve_context(tenant, version, user_input)
     system_prompt = build_system_prompt(version.system_prompt, hits)
@@ -134,15 +199,25 @@ def generate(
     records: list[dict[str, Any]] = []
     usage: Counter[str] = Counter()
     for round_number in range(settings.MAX_TOOL_STEPS + 1):
-        completion = provider.complete(
-            model=version.model,
-            system_prompt=system_prompt,
-            user_input=user_input,
-            parameters=version.parameters,
-            timeout=timeout,
-            tools=specs,
-            history=history,
-        )
+        started_at = timezone.now()
+        try:
+            completion = provider.complete(
+                model=version.model,
+                system_prompt=system_prompt,
+                user_input=user_input,
+                parameters=version.parameters,
+                timeout=timeout,
+                tools=specs,
+                history=history,
+            )
+        except Exception as error:
+            if events is not None:
+                events.append(
+                    generation_event(version, user_input, history, started_at, error=str(error))
+                )
+            raise
+        if events is not None:
+            events.append(generation_event(version, user_input, history, started_at, completion))
         usage.update(completion.usage)
         if not completion.tool_calls:
             return ExecutionResult(
@@ -158,7 +233,7 @@ def generate(
             )
         history.append(assistant_message(completion))
         for call in completion.tool_calls:
-            record = run_tool_call(call, tools)
+            record = timed_tool_call(call, tools, events)
             records.append(record)
             history.append(tool_message(call, record))
     raise ToolStepLimitExceeded("The tool loop ended without an answer.")
